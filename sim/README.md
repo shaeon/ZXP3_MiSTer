@@ -1,0 +1,22 @@
+# Pruebas de simulación
+
+`./run_tests.sh` (Linux/WSL). Necesita Verilator ≥ 5, Icarus Verilog, GHDL con `--synth` y Python 3
+con Pillow. El `tzxplayer` y el T80 (VHDL) se convierten a Verilog con GHDL; el script corrige dos
+problemas del netlist que genera GHDL 4.1 (un identificador escapado mal formado y un choque de
+nombres por la insensibilidad a mayúsculas de VHDL). Las ROMs del +3 se descargan del proyecto Fuse
+(Amstrad permite su distribución para emuladores).
+
+| Prueba | Qué comprueba | Resultado |
+|---|---|---|
+| `tape/` | `tape_ddr.sv` frente al `tzx.v` original de Kyp, con el `tzxplayer` real y un modelo de DDR3 con 30 % de ocupación y 10–210 ciclos de latencia (escala de tiempo comprimida x10, peor caso) | Pulsos idénticos ciclo a ciclo; cabecera, bloque turbo y datos decodifican bit a bit |
+| `pll/` | `pll_timing.sv` con un `pll_cfg` simulado que activa `waitrequest` al azar | Secuencia modo/K/start correcta, reset hasta el relock, rebotes filtrados |
+| `sdram/` | `sdram.v` de Kyp con modelo temporizado (tCO 3–6 ns, tAC 6 ns, tOH 2,5 ns, pista 0,7 ns) y el reloj retrasado 2,5 ns, a 56,75 y 56,0 MHz | Sin errores; comandos 2,5/15 ns, datos ≥1,7/≥9,9 ns |
+| `system/` | Core completo + T80 + `sdram.v` + carga de la ROM como `hps_io` + blanking reconstruido, en GA y ULA | Arranca al menú del +3 y responde al teclado PS/2; el blanking reconstruido no recorta imagen |
+
+## Comportamientos del `tzx.v` original vistos en simulación
+
+- El primer Play tras el encendido lee un byte de más (el `restart` cambia `req` y eso dispara `stb`):
+  la firma del TZX se desalinea y sale basura. Un segundo Play funciona.
+- Si el bloque es el último del fichero, se pierden sus 2 últimos bytes (incluido el checksum).
+
+`tape_ddr.sv` no tiene ninguno de los dos porque solo atiende peticiones con `req != ack`.

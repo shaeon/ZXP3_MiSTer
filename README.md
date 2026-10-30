@@ -47,8 +47,21 @@ Quartus Prime Lite 17.0. Abrir `zxp3.qpf` o ejecutar `build.bat`, que deja el RB
 
 ## Notas técnicas
 
-- `SDRAM_CLK` sale invertido (180º) por `altddio_out`. Si algún módulo SDRAM diera problemas, cambiar
-  `SDRAM_CLK_INV` a 0 en `zxp3.sv` para tenerlo en fase como en Calypso/Poseidon.
+- **Reloj de la SDRAM**: sale de una segunda salida de la PLL, retrasada ~2,5 ns (2 periodos de VCO).
+  Con un modelo temporizado de la SDRAM (tCO 3–6 ns, tAC 6 ns, tOH 2,5 ns) el reloj en fase deja
+  el hold de los comandos en 0 ns y el invertido captura el dato entre tOH y tAC; con 2,5 ns de
+  retraso quedan setup/hold de comandos de 2,5/15 ns y de datos de 1,7–4,7/≥9,9 ns, en GA y en ULA.
+  El dato capturado es el del segundo READ (35 ns tras el ACTIVE), así que se cumple tRCD con chips -7.
+- **Cambio de timing**: `rtl/pll_timing.sv` reescribe la K fraccional de la PLL vía `pll_cfg`
+  (handshake Avalon completo) y mantiene el core en reset hasta que la PLL vuelve a enganchar.
+- **Cinta**: `rtl/tape_ddr.sv` usa el mismo `tzxplayer` que Kyp con un handshake req/ack que espera
+  a la DDR3. Probado contra el `tzx.v` original: pulsos idénticos y los bloques decodifican bit a bit.
 - `i2s.v`, `mist.v` y `tzx.v` del core de Kyp no se usan: el primero choca con el `i2s` de `sys/`, el
   segundo es específico de MiST y la cinta va por `rtl/tape_ddr.sv`.
-- `vdu.v` no exporta el blanking; `zxp3.sv` lo reconstruye a partir de los flancos de hsync/vsync.
+- `vdu.v` no exporta el blanking; `zxp3.sv` lo reconstruye a partir de los flancos de hsync/vsync
+  (verificado ciclo a ciclo contra los contadores internos de `vdu.v` en GA y ULA).
+- Sin unidad de disco montada, la ROM del +3 se presenta como "128 +2A"; es el comportamiento normal.
+
+## Pruebas
+
+Ver `sim/README.md`.
