@@ -30,3 +30,4 @@ PLLJ_PLLSPE_INFO.txt
 *.rpt
 .vs/
 .vscode/
+sim/build/

@@ -20,6 +20,18 @@ git submodule update --init --recursive
 Quartus Prime Lite 17.0. Abrir `zxp3.qpf` o ejecutar `build.bat`, que deja el RBF en
 `releases/ZXP3_aaaammdd.rbf`.
 
+### En GitHub
+
+Al subir el repositorio, `.github/workflows/build.yml` compila el core con Quartus 17.0 (imagen
+Docker `raetro/quartus:17.0`) en cada push a `main` o pull request:
+
+- El RBF (`ZXP3_aaaammdd.rbf`) y los informes quedan como artefacto en la pestaña **Actions**.
+- La página de la ejecución muestra el resumen de tiempos y avisa si hay holguras negativas.
+- Una etiqueta `v*` crea además una **Release** con el RBF: `git tag v1.0 && git push origin v1.0`.
+
+`.github/workflows/sdram_phase.yml` (lanzado a mano desde Actions) compila un RBF por cada desfase de
+`SDRAM_CLK` que se le pase, por si algún módulo SDRAM necesita otro ajuste.
+
 ## Instalación
 
 - Copiar el RBF a `/media/fat/_Computer/`.
