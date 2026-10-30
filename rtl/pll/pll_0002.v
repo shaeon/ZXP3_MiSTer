@@ -2,11 +2,13 @@
 // VCO = 50 MHz * (15 + K/2^32); outclk_0 = VCO / 14
 //   K = 3823001930 -> 794.5056 MHz -> 56.7504 MHz (valor por defecto, timing GA)
 //   K = 2920577761 -> 784.0000 MHz -> 56.0000 MHz (timing ULA 48K)
+// outclk_1 = misma frecuencia, retrasada 2 periodos de VCO (~2,5 ns) para SDRAM_CLK
 module pll_0002
 (
 	input  wire        refclk,
 	input  wire        rst,
 	output wire        outclk_0,
+	output wire        outclk_1,
 	output wire        locked,
 	input  wire [63:0] reconfig_to_pll,
 	output wire [63:0] reconfig_from_pll
@@ -18,12 +20,12 @@ module pll_0002
 		.pll_fractional_cout(32),
 		.pll_dsm_out_sel("1st_order"),
 		.operation_mode("direct"),
-		.number_of_clocks(1),
+		.number_of_clocks(2),
 		.output_clock_frequency0("56.750400 MHz"),
 		.phase_shift0("0 ps"),
 		.duty_cycle0(50),
-		.output_clock_frequency1("0 MHz"),
-		.phase_shift1("0 ps"),
+		.output_clock_frequency1("56.750400 MHz"),
+		.phase_shift1("2517 ps"),
 		.duty_cycle1(50),
 		.output_clock_frequency2("0 MHz"),
 		.phase_shift2("0 ps"),
@@ -90,6 +92,13 @@ module pll_0002
 		.c_cnt_in_src0("ph_mux_clk"),
 		.c_cnt_bypass_en0("false"),
 		.c_cnt_odd_div_duty_en0("false"),
+		.c_cnt_hi_div1(7),
+		.c_cnt_lo_div1(7),
+		.c_cnt_prst1(3),
+		.c_cnt_ph_mux_prst1(0),
+		.c_cnt_in_src1("ph_mux_clk"),
+		.c_cnt_bypass_en1("false"),
+		.c_cnt_odd_div_duty_en1("false"),
 		.pll_vco_div(1),
 		.pll_cp_current(30),
 		.pll_bwctrl(2000),
@@ -102,7 +111,7 @@ module pll_0002
 		.pll_slf_rst("true")
 	) altera_pll_i (
 		.rst              (rst),
-		.outclk           ({outclk_0}),
+		.outclk           ({outclk_1, outclk_0}),
 		.locked           (locked),
 		.reconfig_to_pll  (reconfig_to_pll),
 		.fboutclk         ( ),

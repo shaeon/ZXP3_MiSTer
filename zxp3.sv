@@ -79,6 +79,7 @@ module emu
 //--- clock ---------------------------------------------------------------------------------------
 
 	wire clock;
+	wire clockSdr;
 	wire power;
 
 	wire[63:0] reconfig_to_pll;
@@ -89,6 +90,7 @@ module emu
 		.refclk           (CLK_50M          ),
 		.rst              (1'b0             ),
 		.outclk_0         (clock            ), // 56.7504 MHz (GA) / 56.0000 MHz (ULA)
+		.outclk_1         (clockSdr         ), // igual, retrasado ~2,5 ns
 		.locked           (power            ),
 		.reconfig_to_pll  (reconfig_to_pll  ),
 		.reconfig_from_pll(reconfig_from_pll)
@@ -97,9 +99,9 @@ module emu
 	// reconfiguración de la PLL al cambiar el timing de vídeo (como hace el core C64 con PAL/NTSC)
 
 	wire       cfgWait;
-	reg        cfgW = 1'b0;
-	reg [ 5:0] cfgA;
-	reg [31:0] cfgD;
+	wire       cfgW;
+	wire[ 5:0] cfgA;
+	wire[31:0] cfgD;
 
 	pll_cfg pll_cfg
 	(
@@ -115,34 +117,18 @@ module emu
 		.reconfig_from_pll(reconfig_from_pll)
 	);
 
-	reg       timingCfg = 1'b0;       // timing con el que está configurada la PLL (0 = GA)
-	reg       cfgBusy = 1'b0;
-	reg [2:0] cfgState = 1'd0;
+	wire cfgBusy;
 
-	reg t1 = 1'b0, t2 = 1'b0;
-
-	always @(posedge CLK_50M) begin
-		t1 <= status[8];
-		t2 <= t1;
-
-		cfgW <= 1'b0;
-
-		if(cfgState == 3'd0 && t2 != timingCfg) begin
-			timingCfg <= t2;
-			cfgBusy <= 1'b1;
-			cfgState <= 1'd1;
-		end
-
-		if(!cfgWait && cfgState != 3'd0) begin
-			cfgState <= cfgState+1'd1;
-			case(cfgState)
-				1: begin cfgA <= 6'd0; cfgD <= 32'd0; cfgW <= 1'b1; end                       // modo waitrequest
-				3: begin cfgA <= 6'd7; cfgD <= timingCfg ? 32'd2920577761 : 32'd3823001930; cfgW <= 1'b1; end // K
-				5: begin cfgA <= 6'd2; cfgD <= 32'd0; cfgW <= 1'b1; end                       // start
-				7: cfgBusy <= 1'b0;
-			endcase
-		end
-	end
+	pll_timing pll_timing
+	(
+		.clk    (CLK_50M  ),
+		.timing (status[8]),
+		.busy   (cfgBusy  ),
+		.cfgWait(cfgWait  ),
+		.cfgW   (cfgW     ),
+		.cfgA   (cfgA     ),
+		.cfgD   (cfgD     )
+	);
 
 	reg cfgBusyS1 = 1'b0, cfgBusyS = 1'b0;
 	always @(posedge clock) begin cfgBusyS1 <= cfgBusy; cfgBusyS <= cfgBusyS1; end
@@ -478,11 +464,10 @@ module emu
 
 	assign { SDRAM_DQMH, SDRAM_DQML } = dramDQM;
 
-	// Reloj de la SDRAM invertido (180º): el controlador de Kyp saca los comandos en el flanco de
-	// subida y la SDRAM los captura medio ciclo después. Si alguna placa SDRAM diera problemas,
-	// probar con SDRAM_CLK_INV = 0 (reloj en fase, como en Calypso/Poseidon).
-	localparam SDRAM_CLK_INV = 1;
-
+	// Reloj de la SDRAM: el controlador de Kyp saca los comandos en el flanco de subida y captura el
+	// dato 2 ciclos después del segundo READ. Simulado con un modelo temporizado: con el reloj en
+	// fase el hold de los comandos queda en 0 ns (carrera) y con el reloj invertido la captura cae
+	// entre tOH y tAC. Retrasándolo ~2,5 ns (salida 1 de la PLL) quedan holgados comandos y datos.
 	altddio_out
 	#(
 		.extend_oe_disable     ("OFF"         ),
@@ -496,9 +481,9 @@ module emu
 	)
 	sdramclk_ddr
 	(
-		.datain_h  (SDRAM_CLK_INV ? 1'b0 : 1'b1),
-		.datain_l  (SDRAM_CLK_INV ? 1'b1 : 1'b0),
-		.outclock  (clock      ),
+		.datain_h  (1'b1       ),
+		.datain_l  (1'b0       ),
+		.outclock  (clockSdr   ),
 		.dataout   (SDRAM_CLK  ),
 		.aclr      (1'b0       ),
 		.aset      (1'b0       ),

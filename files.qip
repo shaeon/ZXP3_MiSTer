@@ -17,6 +17,7 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/zxp3/u765.sv
 set_global_assignment -name VHDL_FILE          rtl/zxp3/tzxplayer.vhd
 
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/tape_ddr.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/pll_timing.sv
 
 set_global_assignment -name SDC_FILE           zxp3.sdc
 set_global_assignment -name SYSTEMVERILOG_FILE zxp3.sv
