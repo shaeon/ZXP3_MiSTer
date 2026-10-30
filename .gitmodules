@@ -1,0 +1,3 @@
+[submodule "rtl/zxp3"]
+	path = rtl/zxp3
+	url = https://github.com/Kyp069/zxp3.git
