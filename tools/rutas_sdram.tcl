@@ -8,7 +8,7 @@ create_timing_netlist
 read_sdc
 update_timing_netlist
 
-set clk_sys {*|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk}
+set clk_sys {emu|pll|pll_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk}
 set f output_files/rutas_sdram.txt
 file delete -force $f
 
