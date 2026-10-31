@@ -26,19 +26,19 @@ module tb;
     @(negedge busy);
     if(hold>0 || cfgWait) begin end
     $display("GA->ULA: %0d escrituras, busy %0d ns", wcnt, $time-t0);
-    if(wcnt!=3) errs++; check(0, 32'd2920577761);
+    if(wcnt!=3) errs++; check(0, 32'd3607772529);
     // busy debe soltarse solo después de que acabe el relock (hold de 3000 ciclos tras START)
     if($time-t0 < 3000*20) begin $display("ERROR: busy se suelta antes del relock"); errs++; end
     // pulso de 1 ciclo (ruido) no debe disparar nada... aquí cambio real a GA con un rebote durante busy
     repeat(20) @(posedge clk); timing=0; @(posedge busy); repeat(5) @(posedge clk); timing=1; repeat(3) @(posedge clk); timing=0;
     @(negedge busy); repeat(200) @(posedge clk);
     $display("ULA->GA con rebote: %0d escrituras totales, busy=%0d", wcnt, busy);
-    check(3, 32'd3823001930);
+    check(3, 32'd4058984613);
     if(wcnt!=6) begin $display("ERROR: esperaba 6 escrituras"); errs++; end
     // cambio durante busy que sí persiste: debe aplicarse al terminar
     timing=1; @(posedge busy); repeat(10) @(posedge clk); timing=0; @(negedge busy); repeat(10) @(posedge clk);
     if(!busy) @(posedge busy); @(negedge busy); repeat(50) @(posedge clk);
-    check(6, 32'd2920577761); check(9, 32'd3823001930);
+    check(6, 32'd3607772529); check(9, 32'd4058984613);
     $display("cambio persistente durante busy: %0d escrituras (esperadas 12)", wcnt); if(wcnt!=12) errs++;
     if(errs) $display("FALLOS: %0d", errs); else $display("OK pll_timing"); $finish;
   end

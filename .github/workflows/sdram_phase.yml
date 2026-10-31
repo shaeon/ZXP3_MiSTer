@@ -2,8 +2,9 @@
 # Compila un .rbf por cada desfase: ZXP3_sdr2517.rbf, etc. Se lanza a mano:
 # Actions > SDRAM phase sweep > Run workflow.
 #
-# El desfase se programa en pasos de 1/8 del periodo del VCO (794,5 MHz en GA:
-# ~157 ps): c_cnt_prst1 = 1 + pasos/8 y c_cnt_ph_mux_prst1 = pasos % 8.
+# El desfase se programa en pasos de 1/8 del periodo de la entrada de los
+# contadores (397,25 MHz en GA: ~315 ps): c_cnt_prst1 = 1 + pasos/8 y
+# c_cnt_ph_mux_prst1 = pasos % 8 (codificación comprobada con la PLL del core SNES).
 # La simulacion temporizada (sim/sdram) da buen margen entre ~1,5 y ~3,5 ns.
 
 name: SDRAM phase sweep
@@ -38,7 +39,7 @@ jobs:
 
       - name: Desfase ${{ matrix.phase }} ps
         run: |
-          STEPS=$(( (${{ matrix.phase }} * 8 * 7945056 + 5000000000) / 10000000000 ))
+          STEPS=$(( (${{ matrix.phase }} * 8 * 3972528 + 5000000000) / 10000000000 ))
           PRST=$(( 1 + STEPS / 8 )); MUX=$(( STEPS % 8 ))
           echo "pasos=$STEPS prst=$PRST ph_mux=$MUX"
           sed -i -E 's/(\.phase_shift1\(")[0-9]+ ps/\1${{ matrix.phase }} ps/' rtl/pll/pll_0002.v

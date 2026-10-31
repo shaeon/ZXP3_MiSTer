@@ -1,8 +1,8 @@
 //-------------------------------------------------------------------------------------------------
 // ZXP3 para MiSTer - reconfiguración de la PLL según el timing de vídeo (como el core C64 con
 // PAL/NTSC). Solo se reescribe la parte fraccional K del contador M:
-//   timing = 0 -> K = 3823001930 -> 56.7504 MHz (+2A/+3, gate array)
-//   timing = 1 -> K = 2920577761 -> 56.0000 MHz (48K, ULA)
+//   timing = 0 -> K = 4058984613 -> 56.7504 MHz (+2A/+3, gate array)
+//   timing = 1 -> K = 3607772529 -> 56.0000 MHz (48K, ULA)
 //-------------------------------------------------------------------------------------------------
 module pll_timing
 (
@@ -16,8 +16,8 @@ module pll_timing
 	output reg  [31:0] cfgD = 32'd0
 );
 
-	localparam [31:0] K_GA  = 32'd3823001930;
-	localparam [31:0] K_ULA = 32'd2920577761;
+	localparam [31:0] K_GA  = 32'd4058984613;
+	localparam [31:0] K_ULA = 32'd3607772529;
 
 	reg       t1 = 1'b0, t2 = 1'b0;
 	reg       timingCfg = 1'b0;          // la PLL arranca configurada para GA

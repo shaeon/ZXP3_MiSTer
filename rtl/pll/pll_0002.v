@@ -1,16 +1,35 @@
+// PLL del core ZXP3 (MiSTer), con parámetros físicos para poder reconfigurarla con pll_cfg.
+// Basada en la estructura que genera Quartus 17.0 (como la del core C64 de MiSTer).
+//
+// Entrada de los contadores = 50 MHz * (M + K/2^32), M = 7; VCO = el doble (pll_vco_div = 2).
+//   K = 4058984613 -> 397,2528 MHz -> /7 = 56,7504 MHz (timing +2A/+3, GA) - valor por defecto
+//   K = 3607772529 -> 392,0000 MHz -> /7 = 56,0000 MHz (timing 48K, ULA)
+// outclk_0: clk_sys.
+// outclk_1: SDRAM_CLK, misma frecuencia retrasada c_cnt_prst1-1 periodos de la entrada de los
+//           contadores (2,517 ns cada uno) mas c_cnt_ph_mux_prst1 octavos de periodo:
+//           prst1 = 2, ph_mux = 0 -> 2517 ps.
 `timescale 1ns/10ps
-// VCO = 50 MHz * (15 + K/2^32); outclk_0 = VCO / 14
-//   K = 3823001930 -> 794.5056 MHz -> 56.7504 MHz (valor por defecto, timing GA)
-//   K = 2920577761 -> 784.0000 MHz -> 56.0000 MHz (timing ULA 48K)
-// outclk_1 = misma frecuencia, retrasada 2 periodos de VCO (~2,5 ns) para SDRAM_CLK
-module pll_0002
-(
-	input  wire        refclk,
-	input  wire        rst,
-	output wire        outclk_0,
-	output wire        outclk_1,
-	output wire        locked,
-	input  wire [63:0] reconfig_to_pll,
+module  pll_0002(
+
+	// interface 'refclk'
+	input wire refclk,
+
+	// interface 'reset'
+	input wire rst,
+
+	// interface 'outclk0'
+	output wire outclk_0,
+
+	// interface 'outclk1'
+	output wire outclk_1,
+
+	// interface 'locked'
+	output wire locked,
+
+	// interface 'reconfig_to_pll'
+	input wire [63:0] reconfig_to_pll,
+
+	// interface 'reconfig_from_pll'
 	output wire [63:0] reconfig_from_pll
 );
 
@@ -77,47 +96,159 @@ module pll_0002
 		.duty_cycle17(50),
 		.pll_type("Cyclone V"),
 		.pll_subtype("Reconfigurable"),
-		.m_cnt_hi_div(8),
-		.m_cnt_lo_div(7),
+		.m_cnt_hi_div(4),
+		.m_cnt_lo_div(3),
 		.n_cnt_hi_div(256),
 		.n_cnt_lo_div(256),
 		.m_cnt_bypass_en("false"),
 		.n_cnt_bypass_en("true"),
 		.m_cnt_odd_div_duty_en("true"),
 		.n_cnt_odd_div_duty_en("false"),
-		.c_cnt_hi_div0(7),
-		.c_cnt_lo_div0(7),
+		.c_cnt_hi_div0(4),
+		.c_cnt_lo_div0(3),
 		.c_cnt_prst0(1),
 		.c_cnt_ph_mux_prst0(0),
 		.c_cnt_in_src0("ph_mux_clk"),
 		.c_cnt_bypass_en0("false"),
-		.c_cnt_odd_div_duty_en0("false"),
-		.c_cnt_hi_div1(7),
-		.c_cnt_lo_div1(7),
-		.c_cnt_prst1(3),
+		.c_cnt_odd_div_duty_en0("true"),
+		.c_cnt_hi_div1(4),
+		.c_cnt_lo_div1(3),
+		.c_cnt_prst1(2),
 		.c_cnt_ph_mux_prst1(0),
 		.c_cnt_in_src1("ph_mux_clk"),
 		.c_cnt_bypass_en1("false"),
-		.c_cnt_odd_div_duty_en1("false"),
-		.pll_vco_div(1),
+		.c_cnt_odd_div_duty_en1("true"),
+		.c_cnt_hi_div2(1),
+		.c_cnt_lo_div2(1),
+		.c_cnt_prst2(1),
+		.c_cnt_ph_mux_prst2(0),
+		.c_cnt_in_src2("ph_mux_clk"),
+		.c_cnt_bypass_en2("true"),
+		.c_cnt_odd_div_duty_en2("false"),
+		.c_cnt_hi_div3(1),
+		.c_cnt_lo_div3(1),
+		.c_cnt_prst3(1),
+		.c_cnt_ph_mux_prst3(0),
+		.c_cnt_in_src3("ph_mux_clk"),
+		.c_cnt_bypass_en3("true"),
+		.c_cnt_odd_div_duty_en3("false"),
+		.c_cnt_hi_div4(1),
+		.c_cnt_lo_div4(1),
+		.c_cnt_prst4(1),
+		.c_cnt_ph_mux_prst4(0),
+		.c_cnt_in_src4("ph_mux_clk"),
+		.c_cnt_bypass_en4("true"),
+		.c_cnt_odd_div_duty_en4("false"),
+		.c_cnt_hi_div5(1),
+		.c_cnt_lo_div5(1),
+		.c_cnt_prst5(1),
+		.c_cnt_ph_mux_prst5(0),
+		.c_cnt_in_src5("ph_mux_clk"),
+		.c_cnt_bypass_en5("true"),
+		.c_cnt_odd_div_duty_en5("false"),
+		.c_cnt_hi_div6(1),
+		.c_cnt_lo_div6(1),
+		.c_cnt_prst6(1),
+		.c_cnt_ph_mux_prst6(0),
+		.c_cnt_in_src6("ph_mux_clk"),
+		.c_cnt_bypass_en6("true"),
+		.c_cnt_odd_div_duty_en6("false"),
+		.c_cnt_hi_div7(1),
+		.c_cnt_lo_div7(1),
+		.c_cnt_prst7(1),
+		.c_cnt_ph_mux_prst7(0),
+		.c_cnt_in_src7("ph_mux_clk"),
+		.c_cnt_bypass_en7("true"),
+		.c_cnt_odd_div_duty_en7("false"),
+		.c_cnt_hi_div8(1),
+		.c_cnt_lo_div8(1),
+		.c_cnt_prst8(1),
+		.c_cnt_ph_mux_prst8(0),
+		.c_cnt_in_src8("ph_mux_clk"),
+		.c_cnt_bypass_en8("true"),
+		.c_cnt_odd_div_duty_en8("false"),
+		.c_cnt_hi_div9(1),
+		.c_cnt_lo_div9(1),
+		.c_cnt_prst9(1),
+		.c_cnt_ph_mux_prst9(0),
+		.c_cnt_in_src9("ph_mux_clk"),
+		.c_cnt_bypass_en9("true"),
+		.c_cnt_odd_div_duty_en9("false"),
+		.c_cnt_hi_div10(1),
+		.c_cnt_lo_div10(1),
+		.c_cnt_prst10(1),
+		.c_cnt_ph_mux_prst10(0),
+		.c_cnt_in_src10("ph_mux_clk"),
+		.c_cnt_bypass_en10("true"),
+		.c_cnt_odd_div_duty_en10("false"),
+		.c_cnt_hi_div11(1),
+		.c_cnt_lo_div11(1),
+		.c_cnt_prst11(1),
+		.c_cnt_ph_mux_prst11(0),
+		.c_cnt_in_src11("ph_mux_clk"),
+		.c_cnt_bypass_en11("true"),
+		.c_cnt_odd_div_duty_en11("false"),
+		.c_cnt_hi_div12(1),
+		.c_cnt_lo_div12(1),
+		.c_cnt_prst12(1),
+		.c_cnt_ph_mux_prst12(0),
+		.c_cnt_in_src12("ph_mux_clk"),
+		.c_cnt_bypass_en12("true"),
+		.c_cnt_odd_div_duty_en12("false"),
+		.c_cnt_hi_div13(1),
+		.c_cnt_lo_div13(1),
+		.c_cnt_prst13(1),
+		.c_cnt_ph_mux_prst13(0),
+		.c_cnt_in_src13("ph_mux_clk"),
+		.c_cnt_bypass_en13("true"),
+		.c_cnt_odd_div_duty_en13("false"),
+		.c_cnt_hi_div14(1),
+		.c_cnt_lo_div14(1),
+		.c_cnt_prst14(1),
+		.c_cnt_ph_mux_prst14(0),
+		.c_cnt_in_src14("ph_mux_clk"),
+		.c_cnt_bypass_en14("true"),
+		.c_cnt_odd_div_duty_en14("false"),
+		.c_cnt_hi_div15(1),
+		.c_cnt_lo_div15(1),
+		.c_cnt_prst15(1),
+		.c_cnt_ph_mux_prst15(0),
+		.c_cnt_in_src15("ph_mux_clk"),
+		.c_cnt_bypass_en15("true"),
+		.c_cnt_odd_div_duty_en15("false"),
+		.c_cnt_hi_div16(1),
+		.c_cnt_lo_div16(1),
+		.c_cnt_prst16(1),
+		.c_cnt_ph_mux_prst16(0),
+		.c_cnt_in_src16("ph_mux_clk"),
+		.c_cnt_bypass_en16("true"),
+		.c_cnt_odd_div_duty_en16("false"),
+		.c_cnt_hi_div17(1),
+		.c_cnt_lo_div17(1),
+		.c_cnt_prst17(1),
+		.c_cnt_ph_mux_prst17(0),
+		.c_cnt_in_src17("ph_mux_clk"),
+		.c_cnt_bypass_en17("true"),
+		.c_cnt_odd_div_duty_en17("false"),
+		.pll_vco_div(2),
 		.pll_cp_current(30),
 		.pll_bwctrl(2000),
-		.pll_output_clk_frequency("794.505600 MHz"),
-		.pll_fractional_division("3823001930"),
+		.pll_output_clk_frequency("397.252800 MHz"),
+		.pll_fractional_division("4058984613"),
 		.mimic_fbclk_type("none"),
 		.pll_fbclk_mux_1("glb"),
 		.pll_fbclk_mux_2("m_cnt"),
 		.pll_m_cnt_in_src("ph_mux_clk"),
 		.pll_slf_rst("true")
 	) altera_pll_i (
-		.rst              (rst),
-		.outclk           ({outclk_1, outclk_0}),
-		.locked           (locked),
-		.reconfig_to_pll  (reconfig_to_pll),
-		.fboutclk         ( ),
-		.fbclk            (1'b0),
-		.refclk           (refclk),
-		.reconfig_from_pll(reconfig_from_pll)
+		.rst	(rst),
+		.outclk	({outclk_1, outclk_0}),
+		.locked	(locked),
+		.reconfig_to_pll	(reconfig_to_pll),
+		.fboutclk	( ),
+		.fbclk	(1'b0),
+		.refclk	(refclk),
+		.reconfig_from_pll	(reconfig_from_pll)
 	);
-
 endmodule
+

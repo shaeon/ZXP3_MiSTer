@@ -57,6 +57,19 @@ jobs:
           docker run --rm -v "$GITHUB_WORKSPACE":/build -w /build raetro/quartus:17.0 \
             quartus_sh --flow compile zxp3
 
+      # Si falla, saca los errores de Quartus como anotaciones y en el resumen
+      - name: Errores de Quartus
+        if: failure()
+        run: |
+          ERR=$(cat output_files/zxp3.*.rpt 2>/dev/null | grep -E '^(Error|Critical Warning) \(' | sort -u | head -40)
+          {
+            echo "## Errores de Quartus"
+            echo '```'
+            echo "${ERR:-No hay informes: mira el log del paso Compilar}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "$ERR" | grep '^Error' | head -10 | while read -r l; do echo "::error title=Quartus::$l"; done
+
       - name: Detalle de tiempos de la SDRAM
         if: always()
         run: |

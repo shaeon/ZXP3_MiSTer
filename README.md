@@ -59,7 +59,7 @@ Docker `raetro/quartus:17.0`) en cada push a `main` o pull request:
 
 ## Notas técnicas
 
-- **Reloj de la SDRAM**: sale de una segunda salida de la PLL, retrasada ~2,5 ns (2 periodos de VCO).
+- **Reloj de la SDRAM**: sale de una segunda salida de la PLL, retrasada ~2,5 ns (un periodo de la entrada de los contadores del PLL).
   Con un modelo temporizado de la SDRAM (tCO 3–6 ns, tAC 6 ns, tOH 2,5 ns) el reloj en fase deja
   el hold de los comandos en 0 ns y el invertido captura el dato entre tOH y tAC; con 2,5 ns de
   retraso quedan setup/hold de comandos de 2,5/15 ns y de datos de 1,7–4,7/≥9,9 ns, en GA y en ULA.
