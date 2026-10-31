@@ -29,9 +29,6 @@ Docker `raetro/quartus:17.0`) en cada push a `main` o pull request:
 - La página de la ejecución muestra el resumen de tiempos y avisa si hay holguras negativas.
 - Una etiqueta `v*` crea además una **Release** con el RBF: `git tag v1.0 && git push origin v1.0`.
 
-`.github/workflows/sdram_phase.yml` (lanzado a mano desde Actions) compila un RBF por cada desfase de
-`SDRAM_CLK` que se le pase, por si algún módulo SDRAM necesita otro ajuste.
-
 ## Instalación
 
 - Copiar el RBF a `/media/fat/_Computer/`.
@@ -59,16 +56,18 @@ Docker `raetro/quartus:17.0`) en cada push a `main` o pull request:
 
 ## Notas técnicas
 
-- **Reloj de la SDRAM**: sale de una segunda salida de la PLL, retrasada ~2,5 ns (un periodo de la entrada de los contadores del PLL).
-  Con un modelo temporizado de la SDRAM (tCO 3–6 ns, tAC 6 ns, tOH 2,5 ns) el reloj en fase deja
-  el hold de los comandos en 0 ns y el invertido captura el dato entre tOH y tAC; con 2,5 ns de
-  retraso quedan setup/hold de comandos de 2,5/15 ns y de datos de 1,7–4,7/≥9,9 ns, en GA y en ULA.
-  El dato capturado es el del segundo READ (35 ns tras el ACTIVE), así que se cumple tRCD con chips -7.
+- **SDRAM**: `rtl/sdram_mister.v` sustituye en MiSTer al `sdram.v` de Kyp (misma interfaz). Usa el
+  esquema habitual de MiSTer: `SDRAM_CLK` = clk_sys invertido, un solo ACTIVE y un solo READ/WRITE
+  con auto-precharge a 2 ciclos (tRCD = 35 ns) y captura del dato en el flanco de bajada. Con un
+  modelo temporizado estricto (tCO 3–6 ns, tAC 6 ns, tOH 2,5 ns) quedan 8,8/8,8 ns de setup/hold
+  en los comandos y ≥4,2/≥7,4 ns en los datos, en GA y en ULA. (El controlador de Kyp necesitaba
+  el reloj desfasado ~2,5 ns con una segunda salida de la PLL, que Quartus no admite en una PLL
+  reconfigurable que va a un pin.)
 - **Cambio de timing**: `rtl/pll_timing.sv` reescribe la K fraccional de la PLL vía `pll_cfg`
   (handshake Avalon completo) y mantiene el core en reset hasta que la PLL vuelve a enganchar.
 - **Cinta**: `rtl/tape_ddr.sv` usa el mismo `tzxplayer` que Kyp con un handshake req/ack que espera
   a la DDR3. Probado contra el `tzx.v` original: pulsos idénticos y los bloques decodifican bit a bit.
-- `i2s.v`, `mist.v` y `tzx.v` del core de Kyp no se usan: el primero choca con el `i2s` de `sys/`, el
+- `i2s.v`, `mist.v`, `tzx.v` y `sdram.v` del core de Kyp no se usan (el último lo sustituye `rtl/sdram_mister.v`): el primero choca con el `i2s` de `sys/`, el
   segundo es específico de MiST y la cinta va por `rtl/tape_ddr.sv`.
 - `vdu.v` no exporta el blanking; `zxp3.sv` lo reconstruye a partir de los flancos de hsync/vsync
   (verificado ciclo a ciclo contra los contadores internos de `vdu.v` en GA y ULA).

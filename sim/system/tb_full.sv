@@ -29,12 +29,12 @@ module tb_full(input clock);
   wire [15:0] sdrD = { 8'hFF, romIo ? ioctl_dout : clrE ? 8'hFF : d2 };
   wire sdrW = romIo ? ioctl_wr : clrE ? clrW : w2;
   wire cke, ncs, nwe, nras, ncas; wire [1:0] dqm, ba; wire [12:0] A; wire [15:0] dq_r; wire dq_oe; reg [15:0] dq_in;
-  sdram_v sdram(.clock(clock), .ready(ready), .rfsh(rfsh), .rd(r2p), .wr(sdrW), .a(sdrA), .d(sdrD), .q(sdrQ),
+  sdram_mister_v sdram(.clock(clock), .ready(ready), .rfsh(rfsh), .rd(r2p), .wr(sdrW), .a(sdrA), .d(sdrD), .q(sdrQ),
     .dramCe(cke), .dramCs(ncs), .dramWe(nwe), .dramRas(nras), .dramCas(ncas), .dramDQM(dqm), .dq_r(dq_r), .dq_oe(dq_oe), .dq_in(dq_in), .dramBA(ba), .dramA(A));
 
-  // ---- modelo SDRAM funcional CL2 ----
+  // ---- modelo SDRAM funcional CL2 con SDRAM_CLK invertido (flancos = negedge de clock) ----
   reg [15:0] mem [0:(1<<21)-1]; reg [12:0] row[4]; reg [15:0] p1; reg v1 = 0; integer nact = 0, nref = 0;
-  always @(posedge clock) begin
+  always @(negedge clock) begin
     dq_in <= v1 ? p1 : 16'hDEAD; v1 <= 0;
     if(!ncs) case({nras, ncas, nwe})
       3'b011: begin row[ba] <= A; nact++; end
@@ -97,7 +97,7 @@ module tb_full(input clock);
   end
   always @(posedge clock) if(ne7M0 && vsync && !vsP) begin
     frame++;
-    if(frame == 30 || frame == 120 || frame == 150 || frame == 230 || frame == 300 || frame == 380) begin
+    if(frame == 120 || frame == 150 || frame == 230 || frame == 380) begin
       string fn; fn = $sformatf("frame_%0d_%0d.ppm", TIMING, frame); fd = $fopen(fn, "wb");
       $fwrite(fd, "P6\n400 320\n255\n"); for(int k = 0; k < 400*320*3; k++) $fwrite(fd, "%c", img[k]); $fclose(fd);
       $display("frame %0d (cyc=%0d) reset=%0d addr=%h blankleak=%0d ACT=%0d REF=%0d", frame, cyc, reset, zxp3.a, blankleak, nact, nref);

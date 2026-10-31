@@ -4,10 +4,7 @@
 // Entrada de los contadores = 50 MHz * (M + K/2^32), M = 7; VCO = el doble (pll_vco_div = 2).
 //   K = 4058984613 -> 397,2528 MHz -> /7 = 56,7504 MHz (timing +2A/+3, GA) - valor por defecto
 //   K = 3607772529 -> 392,0000 MHz -> /7 = 56,0000 MHz (timing 48K, ULA)
-// outclk_0: clk_sys.
-// outclk_1: SDRAM_CLK, misma frecuencia retrasada c_cnt_prst1-1 periodos de la entrada de los
-//           contadores (2,517 ns cada uno) mas c_cnt_ph_mux_prst1 octavos de periodo:
-//           prst1 = 2, ph_mux = 0 -> 2517 ps.
+// outclk_0: clk_sys. SDRAM_CLK se saca de clk_sys invertido con altddio_out (ver zxp3.sv).
 `timescale 1ns/10ps
 module  pll_0002(
 
@@ -19,9 +16,6 @@ module  pll_0002(
 
 	// interface 'outclk0'
 	output wire outclk_0,
-
-	// interface 'outclk1'
-	output wire outclk_1,
 
 	// interface 'locked'
 	output wire locked,
@@ -39,12 +33,12 @@ module  pll_0002(
 		.pll_fractional_cout(32),
 		.pll_dsm_out_sel("1st_order"),
 		.operation_mode("direct"),
-		.number_of_clocks(2),
+		.number_of_clocks(1),
 		.output_clock_frequency0("56.750400 MHz"),
 		.phase_shift0("0 ps"),
 		.duty_cycle0(50),
-		.output_clock_frequency1("56.750400 MHz"),
-		.phase_shift1("2517 ps"),
+		.output_clock_frequency1("0 MHz"),
+		.phase_shift1("0 ps"),
 		.duty_cycle1(50),
 		.output_clock_frequency2("0 MHz"),
 		.phase_shift2("0 ps"),
@@ -111,13 +105,13 @@ module  pll_0002(
 		.c_cnt_in_src0("ph_mux_clk"),
 		.c_cnt_bypass_en0("false"),
 		.c_cnt_odd_div_duty_en0("true"),
-		.c_cnt_hi_div1(4),
-		.c_cnt_lo_div1(3),
-		.c_cnt_prst1(2),
+		.c_cnt_hi_div1(1),
+		.c_cnt_lo_div1(1),
+		.c_cnt_prst1(1),
 		.c_cnt_ph_mux_prst1(0),
 		.c_cnt_in_src1("ph_mux_clk"),
-		.c_cnt_bypass_en1("false"),
-		.c_cnt_odd_div_duty_en1("true"),
+		.c_cnt_bypass_en1("true"),
+		.c_cnt_odd_div_duty_en1("false"),
 		.c_cnt_hi_div2(1),
 		.c_cnt_lo_div2(1),
 		.c_cnt_prst2(1),
@@ -242,7 +236,7 @@ module  pll_0002(
 		.pll_slf_rst("true")
 	) altera_pll_i (
 		.rst	(rst),
-		.outclk	({outclk_1, outclk_0}),
+		.outclk	({outclk_0}),
 		.locked	(locked),
 		.reconfig_to_pll	(reconfig_to_pll),
 		.fboutclk	( ),

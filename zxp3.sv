@@ -79,7 +79,6 @@ module emu
 //--- clock ---------------------------------------------------------------------------------------
 
 	wire clock;
-	wire clockSdr;
 	wire power;
 
 	wire[63:0] reconfig_to_pll;
@@ -90,7 +89,6 @@ module emu
 		.refclk           (CLK_50M          ),
 		.rst              (1'b0             ),
 		.outclk_0         (clock            ), // 56.7504 MHz (GA) / 56.0000 MHz (ULA)
-		.outclk_1         (clockSdr         ), // igual, retrasado ~2,5 ns
 		.locked           (power            ),
 		.reconfig_to_pll  (reconfig_to_pll  ),
 		.reconfig_from_pll(reconfig_from_pll)
@@ -441,7 +439,7 @@ module emu
 
 	wire[1:0] dramDQM;
 
-	sdram sdram
+	sdram_mister sdram
 	(
 		.clock  (clock     ),
 		.ready  (ready     ),
@@ -464,10 +462,9 @@ module emu
 
 	assign { SDRAM_DQMH, SDRAM_DQML } = dramDQM;
 
-	// Reloj de la SDRAM: el controlador de Kyp saca los comandos en el flanco de subida y captura el
-	// dato 2 ciclos después del segundo READ. Simulado con un modelo temporizado: con el reloj en
-	// fase el hold de los comandos queda en 0 ns (carrera) y con el reloj invertido la captura cae
-	// entre tOH y tAC. Retrasándolo ~2,5 ns (salida 1 de la PLL) quedan holgados comandos y datos.
+	// SDRAM_CLK = clk_sys invertido, como en la mayoría de cores de MiSTer: la SDRAM captura los
+	// comandos medio ciclo después de que salgan. sdram_mister.v está hecho para este esquema
+	// (captura el dato en el flanco de bajada). Ver la cabecera de rtl/sdram_mister.v.
 	altddio_out
 	#(
 		.extend_oe_disable     ("OFF"         ),
@@ -481,9 +478,9 @@ module emu
 	)
 	sdramclk_ddr
 	(
-		.datain_h  (1'b1       ),
-		.datain_l  (1'b0       ),
-		.outclock  (clockSdr   ),
+		.datain_h  (1'b0       ),
+		.datain_l  (1'b1       ),
+		.outclock  (clock      ),
 		.dataout   (SDRAM_CLK  ),
 		.aclr      (1'b0       ),
 		.aset      (1'b0       ),

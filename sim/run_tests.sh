@@ -35,39 +35,36 @@ echo "-- tzx.v original:"; python3 dec.py ref.txt
 echo "== 2. Reconfiguración de PLL"
 cd $B && iverilog -g2012 -o pll $SIM/pll/tb_pll_timing.sv $R/pll_timing.sv && vvp -n pll | grep -E "OK|ERROR|FALLOS"
 
-echo "== 3. SDRAM temporizada (retraso de reloj 2,5 ns)"
+echo "== 3. SDRAM temporizada (sdram_mister.v, SDRAM_CLK invertido)"
 mkdir -p $B/sdram && cd $B/sdram
-sed -e 's/inout  reg \[15:0\] dramDQ,/inout  wire[15:0] dramDQ,/' -e 's#`include "sdram_cmd.v"#reg [15:0] dq_r = 16'"'"'bZ; assign dramDQ = dq_r;\n`include "sdram_cmd_sim.v"#' $Z/sdram.v > sdram_sim.v
-sed 's/dramDQ  <=/dq_r <=/' $Z/sdram_cmd.v > sdram_cmd_sim.v
 for tck in 17621 17857; do for tco in 3000 4500 6000; do
-  iverilog -g2012 -I. -P tb_ph.PH=2517 -P tb_ph.TCO=$tco -P tb_ph.TCK=$tck -o ph $SIM/sdram/tb_sdram_phase.sv sdram_sim.v
-  echo -n "TCK=${tck}ps "; vvp -n ph | grep "^PH"; done; done
+  iverilog -g2012 -P tb_mister.PH=$((tck/2)) -P tb_mister.TCO=$tco -P tb_mister.TCK=$tck -o m $SIM/sdram/tb_sdram_mister.sv $R/sdram_mister.v
+  echo -n "TCK=${tck}ps "; vvp -n m | grep "^PH"; done; done
 
 echo "== 4. Sistema completo con la ROM del +3 (arranque y teclado)"
 mkdir -p $B/system && cd $B/system
 for i in 0 1 2 3; do [ -f plus3-$i.rom ] || curl -sL -o plus3-$i.rom https://raw.githubusercontent.com/FUSE-emulator/fuse/master/roms/plus3-$i.rom; done
 cat plus3-0.rom plus3-1.rom plus3-2.rom plus3-3.rom > rom.bin
 python3 -c "d=open('rom.bin','rb').read(); open('rom.hex','w').write('\n'.join('%02x'%b for b in d)+'\n')"
-python3 - "$Z" <<'PY'
-import re,sys
-Z=sys.argv[1]
-c=open(Z+'/sdram_cmd.v').read().replace("dramDQ  <= 16'bZ;","dq_oe <= 1'b0;")
-c=re.sub(r"dramDQ  <= (\w+);", r"begin dq_r <= \1; dq_oe <= 1'b1; end", c)
-open('sdram_cmd_v.v','w').write(c)
-s=open(Z+'/sdram.v').read().replace("inout  reg [15:0] dramDQ,","output reg [15:0] dq_r,\n\toutput reg dq_oe,\n\tinput wire [15:0] dq_in,")
-s=s.replace('`include "sdram_cmd.v"','`include "sdram_cmd_v.v"').replace("q <= dramDQ;","q <= dq_in;").replace("module sdram","module sdram_v")
-open('sdram_v.v','w').write(s)
+python3 - "$R" <<'PY'
+import sys
+R=sys.argv[1]
+s=open(R+'/sdram_mister.v').read()
+s=s.replace("inout  wire[15:0] dramDQ,","output wire[15:0] dq_r,\n\toutput wire dq_oe,\n\tinput  wire[15:0] dq_in,")
+s=s.replace("assign dramDQ = dqOe ? dqOut : 16'bZ;","assign dq_r = dqOut; assign dq_oe = dqOe;")
+s=s.replace("dqIn <= dramDQ;","dqIn <= dq_in;").replace("module sdram_mister","module sdram_mister_v")
+open('sdram_mister_v.v','w').write(s)
 PY
 for T in 0 1; do
   verilator --cc --exe --build -O2 -Wno-fatal -Wno-lint -Wno-style -Wno-MULTIDRIVEN -Wno-BLKANDNBLK -Wno-COMBDLY --timing +1364-2005ext+v \
-    -GTIMING=$T --Mdir obj_$T -I. -I$Z $SIM/system/tb_full.sv sdram_v.v $B/t80pa_syn.v \
+    -GTIMING=$T --Mdir obj_$T -I. -I$Z $SIM/system/tb_full.sv sdram_mister_v.v $B/t80pa_syn.v \
     $Z/{cpu,dpr,psg,sdc,spi,vdu,zxp3,mapper,matrix,turbosound}.v $SIM/system/main.cpp -o sim -j 4 > build_$T.log
   ./obj_$T/sim
 done
 python3 -c "
 from PIL import Image
 for T in (0,1):
-  ims=[Image.open(f'frame_{T}_{n}.ppm') for n in (30,120,150,230)]
+  ims=[Image.open(f'frame_{T}_{n}.ppm') for n in (120,150,230,380)]
   w,h=ims[0].size; o=Image.new('RGB',(w*2+10,h*2+10),(60,60,60))
   for k,im in enumerate(ims): o.paste(im,((k%2)*(w+10),(k//2)*(h+10)))
   o.save(f'frames_timing{T}.png')

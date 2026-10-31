@@ -1,16 +1,13 @@
 # Restricciones propias del core (las generales estan en sys/sys_top.sdc).
 
 # ----------------------------------------------------------------------------
-# SDRAM
+# SDRAM (rtl/sdram_mister.v)
 # ----------------------------------------------------------------------------
-# Relojes del PLL del core (rtl/pll):
-#   general[0]  clk_sys 56,7504 / 56,0 MHz (controlador sdram.v de Kyp)
-#   general[1]  igual, retrasado ~2,5 ns; sale al pin SDRAM_CLK por un registro
-#               DDR (datain_h = 1, datain_l = 0: el pin copia el reloj)
-set clk_sys   {*|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk}
-set clk_sdram {*|pll|pll_inst|altera_pll_i|general[1].gpll~PLL_OUTPUT_COUNTER|divclk}
+# general[0] es clk_sys (56,7504 / 56,0 MHz). SDRAM_CLK sale por un registro DDR
+# con datain_h = 0 y datain_l = 1, es decir, clk_sys invertido.
+set clk_sys {*|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk}
 
-create_generated_clock -name SDRAM_CLK -source [get_pins $clk_sdram] [get_ports {SDRAM_CLK}]
+create_generated_clock -name SDRAM_CLK -source [get_pins $clk_sys] -invert [get_ports {SDRAM_CLK}]
 
 # Tiempos del chip a CL2 (modulos SDRAM de MiSTer):
 #   entrada: tAC 6 ns + pista (max), tOH 2,5 ns + pista (min)
@@ -20,7 +17,6 @@ set_input_delay  -clock SDRAM_CLK -min 3.2  [get_ports {SDRAM_DQ[*]}]
 set_output_delay -clock SDRAM_CLK -max 1.5  [get_ports {SDRAM_DQ[*] SDRAM_A[*] SDRAM_BA[*] SDRAM_DQML SDRAM_DQMH SDRAM_n* SDRAM_CKE}]
 set_output_delay -clock SDRAM_CLK -min -0.8 [get_ports {SDRAM_DQ[*] SDRAM_A[*] SDRAM_BA[*] SDRAM_DQML SDRAM_DQMH SDRAM_n* SDRAM_CKE}]
 
-# Lectura: sdram.v saca dos READ seguidos (flancos N-1 y N de clk_sys) y recoge
-# el dato en N+2. El dato del segundo READ lo lanza el flanco de SDRAM_CLK de
-# N+1+desfase, y el siguiente flanco de clk_sys es N+2: es la relacion por
-# defecto de TimeQuest, no hace falta multiciclo (vale para desfases < 1 ciclo).
+# Lectura: el dato lo lanza el flanco de SDRAM_CLK un ciclo despues del que
+# registra el READ (CL2) y lo recoge el flanco de bajada de clk_sys siguiente
+# (registro dqIn de sdram_mister.v): relacion por defecto, sin multiciclo.

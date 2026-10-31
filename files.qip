@@ -9,13 +9,13 @@ set_global_assignment -name VERILOG_FILE       rtl/zxp3/spi.v
 set_global_assignment -name VERILOG_FILE       rtl/zxp3/vdu.v
 set_global_assignment -name VERILOG_FILE       rtl/zxp3/ps2k.v
 set_global_assignment -name VERILOG_FILE       rtl/zxp3/zxp3.v
-set_global_assignment -name VERILOG_FILE       rtl/zxp3/sdram.v
 set_global_assignment -name VERILOG_FILE       rtl/zxp3/mapper.v
 set_global_assignment -name VERILOG_FILE       rtl/zxp3/matrix.v
 set_global_assignment -name VERILOG_FILE       rtl/zxp3/turbosound.v
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/zxp3/u765.sv
 set_global_assignment -name VHDL_FILE          rtl/zxp3/tzxplayer.vhd
 
+set_global_assignment -name VERILOG_FILE       rtl/sdram_mister.v
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/tape_ddr.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pll_timing.sv
 

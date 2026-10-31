@@ -1,5 +1,5 @@
 `timescale 1ps/1ps
-module tb_ph;
+module tb_mister;
   parameter real TCK   = 17621.0;   // 56.7504 MHz
   parameter real PH = 0.0;  parameter INV = 0;         // SDRAM_CLK invertido
   parameter real TCO   = 4500.0;    // tCO pines de salida (fast output register / DDIO)
@@ -14,7 +14,7 @@ module tb_ph;
 
   reg rd=0, wr=0, rfsh=1; reg [23:0] a=0; reg [15:0] d=0; wire [15:0] q; wire ready;
   wire ce_,cs,we,ras,cas; wire [1:0] dqm, ba; wire [12:0] A; wire [15:0] dq_fpga;
-  sdram dut(.clock(clock),.ready(ready),.rfsh(rfsh),.rd(rd),.wr(wr),.a(a),.d(d),.q(q),
+  sdram_mister dut(.clock(clock),.ready(ready),.rfsh(rfsh),.rd(rd),.wr(wr),.a(a),.d(d),.q(q),
     .dramCe(ce_),.dramCs(cs),.dramWe(we),.dramRas(ras),.dramCas(cas),.dramDQM(dqm),.dramDQ(dq_fpga),.dramBA(ba),.dramA(A));
 
   wire [20:0] cmd_f = {cs,ras,cas,we,ba,A,dqm};
@@ -61,7 +61,7 @@ module tb_ph;
 
   realtime lastdq=0; always @(dq_back) lastdq=$realtime;
   real mindsu=1e9, mindh=1e9; reg sampling=0; realtime samp_t;
-  always @(posedge clock) if(dut.state==1 && dut.count==2) begin
+  always @(negedge clock) if(dut.state==1 && dut.count==4) begin
      if($realtime-lastdq < mindsu) mindsu=$realtime-lastdq; samp_t=$realtime; sampling=1; end
   always @(dq_back) if(sampling) begin if($realtime-samp_t < mindh) mindh=$realtime-samp_t; sampling=0; end
 

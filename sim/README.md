@@ -10,8 +10,8 @@ nombres por la insensibilidad a mayúsculas de VHDL). Las ROMs del +3 se descarg
 |---|---|---|
 | `tape/` | `tape_ddr.sv` frente al `tzx.v` original de Kyp, con el `tzxplayer` real y un modelo de DDR3 con 30 % de ocupación y 10–210 ciclos de latencia (escala de tiempo comprimida x10, peor caso) | Pulsos idénticos ciclo a ciclo; cabecera, bloque turbo y datos decodifican bit a bit |
 | `pll/` | `pll_timing.sv` con un `pll_cfg` simulado que activa `waitrequest` al azar | Secuencia modo/K/start correcta, reset hasta el relock, rebotes filtrados |
-| `sdram/` | `sdram.v` de Kyp con modelo temporizado (tCO 3–6 ns, tAC 6 ns, tOH 2,5 ns, pista 0,7 ns) y el reloj retrasado 2,5 ns, a 56,75 y 56,0 MHz | Sin errores; comandos 2,5/15 ns, datos ≥1,7/≥9,9 ns |
-| `system/` | Core completo + T80 + `sdram.v` + carga de la ROM como `hps_io` + blanking reconstruido, en GA y ULA | Arranca al menú del +3 y responde al teclado PS/2; el blanking reconstruido no recorta imagen |
+| `sdram/` | `sdram_mister.v` con modelo temporizado estricto (tCO 3–6 ns, tAC 6 ns, tOH 2,5 ns, pista 0,7 ns; el bus queda indefinido entre tOH y tAC) y `SDRAM_CLK` invertido, a 56,75 y 56,0 MHz | Sin errores; comandos 8,8/8,8 ns, datos ≥4,2/≥7,4 ns, tRCD 35 ns |
+| `system/` | Core completo + T80 + `sdram_mister.v` + carga de la ROM como `hps_io` + blanking reconstruido, en GA y ULA | Arranca al menú del +3 y responde al teclado PS/2; el blanking reconstruido no recorta imagen |
 
 ## Comportamientos del `tzx.v` original vistos en simulación
 
