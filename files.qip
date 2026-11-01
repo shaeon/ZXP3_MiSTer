@@ -13,7 +13,7 @@ set_global_assignment -name VERILOG_FILE       rtl/zxp3/mapper.v
 set_global_assignment -name VERILOG_FILE       rtl/zxp3/matrix.v
 set_global_assignment -name VERILOG_FILE       rtl/zxp3/turbosound.v
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/zxp3/u765.sv
-set_global_assignment -name VHDL_FILE          rtl/zxp3/tzxplayer.vhd
+set_global_assignment -name VHDL_FILE          rtl/tzxplayer.vhd
 
 set_global_assignment -name VERILOG_FILE       rtl/sdram_mister.v
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/tape_ddr.sv

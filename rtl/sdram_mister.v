@@ -15,12 +15,26 @@
 //  - el dato se captura en el flanco de bajada 2,5 ciclos después del READ, en el centro de la
 //    ventana válida (tAC/tOH), y pasa a q en el siguiente flanco de subida.
 // Las peticiones llegan como mucho una cada 16 ciclos (3,5 MHz); cada acceso tarda 5 ciclos.
+//
+// Refresco automático: el Z80 refresca la SDRAM, pero durante la carga de la ROM y el borrado de
+// la RAM está en reset. Si pasan REF_MAX ciclos sin refresco, el controlador lo hace él, solo en
+// las fases de ce 1, 2, 9 y 10: así termina antes de la fase 8 (lecturas de la CPU) o de la 0, y
+// la CPU nunca espera. Las peticiones que lleguen durante ese refresco (escrituras de hps_io, que
+// llegan en cualquier fase) se guardan, con su dirección y su dato, y se atienden al terminar.
+// Si el refresco va muy retrasado (2*REF_MAX), se hace en cuanto la máquina queda libre, en
+// cualquier fase: solo pasa con la CPU parada, porque el Z80 refresca mucho más a menudo.
 //-------------------------------------------------------------------------------------------------
 module sdram_mister
 //-------------------------------------------------------------------------------------------------
+#(
+	parameter        REF_MAX = 400,                       // ~7 us (64 ms / 8192 filas = 7,8 us)
+	parameter [15:0] REF_MASK = 16'b0000_0110_0000_0110   // fases de ce para el refresco automático
+)
 (
 	input  wire       clock,
+	input  wire[ 3:0] phase,              // ce[3:0] del core
 	output reg        ready,
+	output wire       busy,               // ocupado o con una petición pendiente (para ioctl_wait)
 
 	input  wire       rfsh,
 	input  wire       rd,
@@ -54,11 +68,25 @@ module sdram_mister
 	reg rfshd = 1'b1, rfshp = 1'b0;
 	always @(negedge clock) begin rfshd <= rfsh; rfshp <= !rfsh && rfshd; end
 
+	// la dirección y el dato se guardan en el momento de la petición
+	reg [23:0] aL;
+	reg [15:0] dL;
+
 	reg rdd = 1'b0, rdp = 1'b0;
 	always @(negedge clock) begin rdd <= rd; rdp <= rd && !rdd; end
 
 	reg wrd = 1'b0, wrp = 1'b0;
 	always @(negedge clock) begin wrd <= wr; wrp <= wr && !wrd; end
+
+	// un solo bloque escribe aL/dL (Quartus no admite varios drivers del mismo registro)
+	always @(negedge clock) begin
+		if(rd && !rdd) aL <= a;
+		if(wr && !wrd) begin aL <= a; dL <= d; end
+	end
+
+	// peticiones pendientes (llegadas con la máquina ocupada) y contador de refresco
+	reg aRd = 1'b0, aWr = 1'b0, aRf = 1'b0;
+	reg [9:0] refCnt = 10'd0;
 
 //-------------------------------------------------------------------------------------------------
 
@@ -70,6 +98,8 @@ module sdram_mister
 	endtask
 
 	localparam sIDLE = 0, sREAD = 1, sWRITE = 2, sREFRESH = 3;
+
+	assign busy = state != sIDLE || aRd || aWr || rdp || wrp;
 
 	reg [ 1:0] state = sIDLE;
 	reg [13:0] count = 14'd0;
@@ -92,27 +122,38 @@ module sdram_mister
 		dqOe    <= 1'b0;
 		count   <= count+1'd1;
 
+		if(rdp)   aRd <= 1'b1;
+		if(wrp)   aWr <= 1'b1;
+		if(rfshp) aRf <= 1'b1;
+		if(refCnt != 10'h3FF) refCnt <= refCnt+1'd1;
+
 		if(!ready) begin
+			aRd <= 1'b0; aWr <= 1'b0; aRf <= 1'b0;
 			case(count)
 				12000: begin cmd(cPRE); dramA[10] <= 1'b1; end            // PRECHARGE all
 				12008: begin cmd(cLMR); dramBA <= 2'b00; dramA <= 13'b000_1_00_010_0_000; end // CL2, BL1, write burst single
 				12016, 12024, 12032, 12040,
 				12048, 12056, 12064, 12072: cmd(cREF);                    // 8 x AUTO REFRESH
-				12080: begin ready <= 1'b1; state <= sIDLE; end
+				12080: begin ready <= 1'b1; state <= sIDLE; refCnt <= 10'd0; end
 				default: ;
 			endcase
 		end
 		else case(state)
 			sIDLE: begin
 				count <= 14'd0;
-				ba  <= a[23:22];
-				col <= a[8:0];
-				if(rdp || wrp) begin
-					cmd(cACT); dramBA <= a[23:22]; dramA <= a[21:9];
-					state <= rdp ? sREAD : sWRITE;
+				if(aRd || rdp || aWr || wrp) begin
+					cmd(cACT); dramBA <= aL[23:22]; dramA <= aL[21:9];
+					ba  <= aL[23:22];
+					col <= aL[8:0];
+					if(aRd || rdp) begin aRd <= 1'b0; state <= sREAD; end
+					else           begin aWr <= 1'b0; state <= sWRITE; end
 				end
-				else if(rfshp) begin
+				// refresco automático: en las fases libres; y si va muy retrasado (CPU en reset y
+				// escrituras seguidas de hps_io), en cuanto la máquina quede libre
+				else if(aRf || rfshp || (refCnt >= REF_MAX && (REF_MASK[phase] || refCnt >= 2*REF_MAX))) begin
 					cmd(cREF);
+					aRf <= 1'b0;
+					refCnt <= 10'd0;
 					state <= sREFRESH;
 				end
 			end
@@ -124,7 +165,7 @@ module sdram_mister
 			endcase
 
 			sWRITE: case(count)
-				1: begin cmd(cWRITE); dramDQM <= 2'b00; dramBA <= ba; dramA <= { 2'b00, 1'b1, 1'b0, col }; dqOut <= d; dqOe <= 1'b1; end
+				1: begin cmd(cWRITE); dramDQM <= 2'b00; dramBA <= ba; dramA <= { 2'b00, 1'b1, 1'b0, col }; dqOut <= dL; dqOe <= 1'b1; end
 				4: state <= sIDLE;
 				default: ;
 			endcase

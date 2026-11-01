@@ -14,7 +14,8 @@ module tb_mister;
 
   reg rd=0, wr=0, rfsh=1; reg [23:0] a=0; reg [15:0] d=0; wire [15:0] q; wire ready;
   wire ce_,cs,we,ras,cas; wire [1:0] dqm, ba; wire [12:0] A; wire [15:0] dq_fpga;
-  sdram_mister dut(.clock(clock),.ready(ready),.rfsh(rfsh),.rd(rd),.wr(wr),.a(a),.d(d),.q(q),
+  reg [3:0] ph=0; always @(negedge clock) ph<=ph+1;
+  sdram_mister dut(.clock(clock),.phase(ph),.ready(ready),.rfsh(rfsh),.rd(rd),.wr(wr),.a(a),.d(d),.q(q),
     .dramCe(ce_),.dramCs(cs),.dramWe(we),.dramRas(ras),.dramCas(cas),.dramDQM(dqm),.dramDQ(dq_fpga),.dramBA(ba),.dramA(A));
 
   wire [20:0] cmd_f = {cs,ras,cas,we,ba,A,dqm};

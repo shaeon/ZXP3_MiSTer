@@ -48,7 +48,7 @@ module emu
 		"S0,VHD,Mount SD (DivMMC);",
 		"S1,DSK,Mount drive A:;",
 		"S2,DSK,Mount drive B:;",
-		"F1,TZX,Load TZX;",
+		"F1,TZXTAP,Load tape;",
 		"-;",
 		"P1,Video;",
 		"P1-;",
@@ -356,6 +356,7 @@ module emu
 		else begin tapeCe <= 1'b1; tapeAcc <= tapeAcc+20'd7504; end
 
 	wire tzxBusy;
+	wire tapeWait;
 	wire tzxTape;
 
 	tape_ddr #(.MS(56000)) tape_ddr
@@ -366,9 +367,10 @@ module emu
 		.dlA             (ioctl_addr      ),
 		.dlD             (ioctl_dout      ),
 		.dlW             (ioctl_wr && tzxIo),
-		.dlWait          (ioctl_wait      ),
+		.dlWait          (tapeWait        ),
 		.play            (!play || status[18]),
 		.stop            (!stop || status[19]),
+		.stop48          (1'b0            ),   // +3: el bloque 0x2A no para la cinta
 		.busy            (tzxBusy         ),
 		.tape            (tzxTape         ),
 		.DDRAM_CLK       (DDRAM_CLK       ),
@@ -438,11 +440,17 @@ module emu
 	wire       sdrW = romIo ? ioctl_wr : clrE ? clrW : w2;
 
 	wire[1:0] dramDQM;
+	wire      sdrBusy;
+
+	// hps_io espera mientras el controlador está ocupado con la ROM (por el refresco automático)
+	assign ioctl_wait = tapeWait || (romIo && sdrBusy);
 
 	sdram_mister sdram
 	(
 		.clock  (clock     ),
+		.phase  (ce        ),
 		.ready  (ready     ),
+		.busy   (sdrBusy   ),
 		.rfsh   (rfsh      ),
 		.rd     (sdrR      ),
 		.wr     (sdrW      ),
