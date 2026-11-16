@@ -5,7 +5,7 @@ cd "$(dirname "$0")"; SIM=$PWD; R=$SIM/../rtl; Z=$R/zxp3; B=$SIM/build; mkdir -p
 
 echo "== VHDL -> Verilog con GHDL (tzxplayer y T80)"
 cd $B
-ghdl -a --std=08 -fsynopsys $R/tzxplayer.vhd
+ghdl -a --std=08 -fsynopsys $Z/tzxplayer.vhd
 ghdl --synth --std=08 -fsynopsys --out=verilog -gTZX_MS=5600 tzxplayer > tzxplayer_syn.v
 sed -i '1s/^module tzxplayer/module tzxplayer #(parameter TZX_MS=0)/' tzxplayer_syn.v
 for f in T80_Pack T80_ALU T80_Reg T80_MCode T80 T80pa; do ghdl -a --std=08 -fsynopsys $Z/T80/$f.vhd; done
@@ -32,16 +32,22 @@ verilator --cc --exe --build -O2 -Wno-fatal -Wno-lint -Wno-style -Wno-MULTIDRIVE
 echo "-- DUT:"; cp $SIM/tape/dec.py . ; python3 dec.py dut.txt
 echo "-- tzx.v original:"; python3 dec.py ref.txt
 
-echo "== 1b. Cinta desde la DDR3: TZX con GDB, bloques saltados y bucle, y el mismo contenido como TAP"
+echo "== 1b. Cinta desde la DDR3: TZX con GDB, bloques saltados y bucle, el mismo contenido como TAP, y un PZX"
 mkdir -p $B/tape2 && cd $B/tape2 && python3 $SIM/tape/mktzx_gdb.py > /dev/null
-ghdl -a --std=08 -fsynopsys $R/tzxplayer.vhd
+ghdl -a --std=08 -fsynopsys $Z/tzxplayer.vhd
 ghdl --synth --std=08 -fsynopsys --out=verilog -gTZX_MS=5600 tzxplayer > tzxp_syn.v
 sed -i '1s/^module tzxplayer/module tzxplayer #(parameter TZX_MS=0)/' tzxp_syn.v
 for f in t tap; do N=$(wc -l < $f.hex)
   verilator --cc --exe --build -O2 -Wno-fatal -Wno-lint -Wno-style -Wno-MULTIDRIVEN -Wno-BLKANDNBLK -GSIZE=$N "+define+HEXF=\"$f.hex\"" \
-    --Mdir obj_$f $SIM/tape/tb_tape_ddr.sv $R/tape_ddr.sv tzxp_syn.v $SIM/tape/main_tape_ddr.cpp -o sim -j 4 > build_$f.log
+    --Mdir obj_$f $SIM/tape/tb_tape_ddr.sv $R/tape_ddr.sv $Z/pzx_player.v tzxp_syn.v $SIM/tape/main_tape_ddr.cpp -o sim -j 4 > build_$f.log
   ./obj_$f/sim | grep -v finish; python3 $SIM/tape/dec_bloques.py p2.txt
 done
+# PZX: el mismo contenido que el TAP convertido a PZX (bloques PULS + DATA + PAUS), T-estados = ciclos
+python3 $SIM/tape/tap2pzx.py t.tap t.pzx
+python3 -c "d=open('t.pzx','rb').read(); open('pzx.hex','w').write('\n'.join('%02x'%c for c in d)+'\n')"
+verilator --cc --exe --build -O2 -Wno-fatal -Wno-lint -Wno-style -Wno-MULTIDRIVEN -Wno-BLKANDNBLK -GSIZE=$(stat -c%s t.pzx) -GTSP=16 '+define+HEXF="pzx.hex"' \
+  --Mdir obj_pzx $SIM/tape/tb_tape_ddr.sv $R/tape_ddr.sv $Z/pzx_player.v tzxp_syn.v $SIM/tape/main_tape_ddr.cpp -o sim -j 4 > build_pzx.log
+./obj_pzx/sim | grep -v finish; python3 $SIM/tape/dec_bloques.py p2.txt
 
 echo "== 2. Reconfiguración de PLL"
 cd $B && iverilog -g2012 -o pll $SIM/pll/tb_pll_timing.sv $R/pll_timing.sv && vvp -n pll | grep -E "OK|ERROR|FALLOS"

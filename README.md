@@ -69,16 +69,18 @@ Docker `raetro/quartus:17.0`) en cada push a `main` o pull request:
   controlador está ocupado.
 - **Cambio de timing**: `rtl/pll_timing.sv` reescribe la K fraccional de la PLL vía `pll_cfg`
   (handshake Avalon completo) y mantiene el core en reset hasta que la PLL vuelve a enganchar.
-- **Cinta**: `rtl/tape_ddr.sv` guarda la cinta en la DDR3 y alimenta a `rtl/tzxplayer.vhd` con un
-  handshake req/ack que espera a la DDR3. `rtl/tzxplayer.vhd` es el del core de Kyp ampliado (no se
-  usa el del submódulo): implementa los bloques 0x19 (datos generalizados) y 0x2B, salta enteros los
-  que no reproduce (0x18, 0x23, 0x26, 0x28) en vez de desincronizar la cinta, y el primer pulso tras
-  una pausa sale en nivel bajo, como en Fuse. `tape_ddr.sv` conecta los bucles (0x24/0x25), ignora el
+- **Cinta**: `rtl/tape_ddr.sv` guarda la cinta en la DDR3 y alimenta a los reproductores del core de
+  Kyp (`tzxplayer.vhd` y `pzx_player.v`, del submódulo) con un handshake req/ack que espera a la
+  DDR3. `tzxplayer.vhd` implementa los bloques 0x19 (datos generalizados) y 0x2B y salta enteros los
+  que no reproduce (0x18, 0x23, 0x26, 0x28) en vez de desincronizar la cinta. Los ficheros que
+  empiezan por `PZXT` los reproduce `pzx_player.v`. `tape_ddr.sv` conecta los bucles (0x24/0x25), ignora el
   0x2A ("parar si es un 48K") en el +3 y carga ficheros TAP: si el fichero no empieza por
   `ZXTape!`, le entrega a `tzxplayer` un TZX equivalente generado al vuelo (un bloque 0x10 con 1 s
   de pausa por cada bloque del TAP).
-- `i2s.v`, `mist.v`, `tzx.v`, `sdram.v` y `tzxplayer.vhd` del core de Kyp no se usan (los dos últimos los sustituyen `rtl/sdram_mister.v` y `rtl/tzxplayer.vhd`): el primero choca con el `i2s` de `sys/`, el
-  segundo es específico de MiST y la cinta va por `rtl/tape_ddr.sv`.
+- `i2s.v`, `mist.v`, `tzx.v`, `tape_sd.v`, `tap_player.v`, `scandoubler.v`, `serial_packer.sv`, `sdram.v` y `sdram_cmd.v`
+  del core de Kyp no se usan: el `i2s` choca con el de `sys/`, `mist.v` y la lectura de la cinta por sectores
+  son de las placas MiST (aquí la cinta va por `rtl/tape_ddr.sv`), el escalado lo hace `sys/` y la SDRAM
+  la lleva `rtl/sdram_mister.v`.
 - `vdu.v` no exporta el blanking; `zxp3.sv` lo reconstruye a partir de los flancos de hsync/vsync
   (verificado ciclo a ciclo contra los contadores internos de `vdu.v` en GA y ULA).
 - Sin unidad de disco montada, la ROM del +3 se presenta como "128 +2A"; es el comportamiento normal.

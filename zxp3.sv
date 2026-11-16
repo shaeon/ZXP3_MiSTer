@@ -48,7 +48,7 @@ module emu
 		"S0,VHD,Mount SD (DivMMC);",
 		"S1,DSK,Mount drive A:;",
 		"S2,DSK,Mount drive B:;",
-		"F1,TZXTAP,Load tape;",
+		"F1,TZXTAPPZX,Load tape;",
 		"-;",
 		"P1,Video;",
 		"P1-;",

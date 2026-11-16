@@ -11,7 +11,8 @@
 //-------------------------------------------------------------------------------------------------
 module tape_ddr
 #(
-	parameter MS = 56000                // ciclos de ce por milisegundo
+	parameter MS = 56000,               // ciclos de ce por milisegundo
+	parameter TS = 16                   // ciclos de reloj por T-estado (reproductor PZX)
 )
 (
 	input  wire        clock,
@@ -67,7 +68,10 @@ module tape_ddr
 	reg        cacheV = 1'b0;
 	reg        reading = 1'b0;
 
-	wire       hit = cacheV && cacheA == a[27:3];
+	// dirección que se sirve: la del TZX/TAP o la del reproductor PZX
+	wire[21:0] pzxA;
+	wire [27:0] ra = isPzx ? { 6'd0, pzxA } : a;
+	wire       hit = cacheV && cacheA == ra[27:3];
 
 	// cabecera TZX: "ZXTape!" + 0x1A + versión 1.20
 	function [7:0] tzxHdr(input [3:0] i);
@@ -77,16 +81,26 @@ module tape_ddr
 		endcase
 	endfunction
 
-	// formato: TZX si los 8 primeros bytes son la firma, TAP en otro caso
-	reg dlP = 1'b0, sigOk = 1'b0;
+	function [7:0] pzxHdr(input [1:0] i);
+		case(i) 0: pzxHdr = "P"; 1: pzxHdr = "Z"; 2: pzxHdr = "X"; default: pzxHdr = "T"; endcase
+	endfunction
+
+	// formato: TZX si los 8 primeros bytes son la firma, PZX si los 4 primeros son "PZXT", TAP en
+	// otro caso
+	reg dlP = 1'b0, sigOk = 1'b0, pzxOk = 1'b0;
 	always @(posedge clock) begin
 		dlP <= dl;
-		if(dl && !dlP) sigOk <= 1'b1;
-		else if(dlW && dl && dlA < 8 && dlD != tzxHdr(dlA[3:0])) sigOk <= 1'b0;
-		else if(!dl && dlP && size < 8) sigOk <= 1'b0;
+		if(dl && !dlP) begin sigOk <= 1'b1; pzxOk <= 1'b1; end
+		else begin
+			if(dlW && dl && dlA < 8 && dlD != tzxHdr(dlA[3:0])) sigOk <= 1'b0;
+			if(dlW && dl && dlA < 4 && dlD != pzxHdr(dlA[1:0])) pzxOk <= 1'b0;
+			if(!dl && dlP && size < 8) sigOk <= 1'b0;
+			if(!dl && dlP && size < 4) pzxOk <= 1'b0;
+		end
 	end
-	wire isTap = !sigOk;
-	wire [7:0] q = cacheD[{ a[2:0], 3'b000 } +: 8];
+	wire isPzx = pzxOk;
+	wire isTap = !sigOk && !pzxOk;
+	wire [7:0] q = cacheD[{ ra[2:0], 3'b000 } +: 8];
 
 	always @(posedge clock) begin
 		if(!DDRAM_BUSY) begin
@@ -107,8 +121,8 @@ module tape_ddr
 			end
 		end
 		else if(!ramWE && !ramRD && !reading && !hit) begin
-			ramA    <= a[27:3];
-			cacheA  <= a[27:3];
+			ramA    <= ra[27:3];
+			cacheA  <= ra[27:3];
 			cacheV  <= 1'b0;
 			ramRD   <= 1'b1;
 			reading <= 1'b1;
@@ -143,7 +157,7 @@ module tape_ddr
 	always @(posedge clock) begin
 		restart <= 1'b0;
 
-		if(play && !dl) begin
+		if(play && !dl && !isPzx) begin
 			a <= 1'd0;
 			fetch <= 1'b0;
 			tapSt <= sHDR;
@@ -151,7 +165,7 @@ module tape_ddr
 			motor <= 1'b1;
 			restart <= 1'b1;
 		end
-		else if(stop || eot || (eot48 && stop48) || dl || (isTap ? (tapSt == sID && a >= size) : a >= size)) motor <= 1'b0;
+		else if(stop || eot || (eot48 && stop48) || dl || isPzx || (isTap ? (tapSt == sID && a >= size) : a >= size)) motor <= 1'b0;
 		else if(loopStart) loopA <= a;
 		else if(loopNext)  a <= loopA;
 		else if(req != ack && !fetch && isTap && tapSt <= sP1) begin
@@ -193,9 +207,36 @@ module tape_ddr
 		.loop_next   (loopNext ),
 		.stop        (eot    ),
 		.stop48k     (eot48  ),
-		.cass_read   (tape   ),
-		.cass_running(busy   )
+		.cass_read   (tzxTape),
+		.cass_running(tzxBusy)
 	);
+
+//--- pzx -----------------------------------------------------------------------------------------
+
+	wire       tzxTape, tzxBusy;
+	wire       pzxReq, pzxBusy, pzxTape;
+	reg        pzxAck = 1'b0;
+	reg  [7:0] pzxQ;
+
+	always @(posedge clock) if(isPzx && pzxReq != pzxAck && hit && !dl) begin pzxQ <= q; pzxAck <= pzxReq; end
+
+	pzx_player #(.TS(TS)) pzx_player
+	(
+		.clock (clock               ),
+		.play  (play && !dl && isPzx),
+		.stop  (stop || dl          ),
+		.stop48(stop48              ),
+		.size  (size[21:0]          ),
+		.busy  (pzxBusy             ),
+		.tape  (pzxTape             ),
+		.mReq  (pzxReq              ),
+		.mAck  (pzxAck              ),
+		.mA    (pzxA                ),
+		.mQ    (pzxQ                )
+	);
+
+	assign busy = isPzx ? pzxBusy : tzxBusy;
+	assign tape = isPzx ? pzxTape : tzxTape;
 
 //-------------------------------------------------------------------------------------------------
 endmodule
